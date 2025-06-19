@@ -5,26 +5,36 @@ import (
 	"html/template"
 	"io"
 	"log"
+	"testing"
 	"time"
 
-	"github.com/gophish/gomail"
+	"github.com/nomadgs/gomail"
 )
 
 func Example() {
 	m := gomail.NewMessage()
-	m.SetHeader("From", "alex@example.com")
-	m.SetHeader("To", "bob@example.com", "cora@example.com")
+	m.SetHeader("From", "smtp.example.com")
+	m.SetHeader("To", "smtp.example.com")
 	m.SetAddressHeader("Cc", "dan@example.com", "Dan")
 	m.SetHeader("Subject", "Hello!")
 	m.SetBody("text/html", "Hello <b>Bob</b> and <i>Cora</i>!")
 	m.Attach("/home/Alex/lolcat.jpg")
 
-	d := gomail.NewDialer("smtp.example.com", 587, "user", "123456")
+	d := gomail.NewDialer("smtp.example.com", 465, "user", "123456")
+	//d.SetProxy(&gomail.MProxy{
+	//	Type: "socks5",
+	//	Host: "127.0.0.1",
+	//	Port: 8889,
+	//})
 
 	// Send the email to Bob, Cora and Dan.
 	if err := d.DialAndSend(m); err != nil {
 		panic(err)
 	}
+}
+
+func TestSend(t *testing.T) {
+	Example()
 }
 
 // A daemon that listens to a channel and sends all incoming messages.

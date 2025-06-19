@@ -1,5 +1,5 @@
 # Gomail
-[![Build Status](https://travis-ci.org/gophish/gomail.svg)](https://travis-ci.org/gophish/gomail) [![Documentation](https://godoc.org/github.com/gophish/gomail?status.svg)](https://godoc.org/github.com/gophish/gomail)
+[![Build Status](https://travis-ci.org/nomadgs/gomail.svg)](https://travis-ci.org/nomadgs/gomail) [![Documentation](https://godoc.org/github.com/nomadgs/gomail?status.svg)](https://godoc.org/github.com/nomadgs/gomail)
 
 ## Introduction
 
@@ -29,17 +29,17 @@ Gomail supports:
 
 ## Documentation
 
-https://godoc.org/github.com/gophish/gomail
+https://godoc.org/github.com/nomadgs/gomail
 
 
 ## Download
 
-    go get github.com/gophish/gomail
+    go get github.com/nomadgs/gomail
 
 
 ## Examples
 
-See the [examples in the documentation](https://godoc.org/github.com/gophish/gomail#example-package).
+See the [examples in the documentation](https://godoc.org/github.com/nomadgs/gomail#example-package).
 
 
 ## FAQ
@@ -56,7 +56,7 @@ bypass the verification of the server's certificate chain and host name by using
     import (
     	"crypto/tls"
 
-    	"github.com/gophish/gomail"
+    	"github.com/nomadgs/gomail"
     )
 
     func main() {

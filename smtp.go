@@ -1,8 +1,10 @@
 package gomail
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
+	"golang.org/x/net/proxy"
 	"io"
 	"net"
 	"net/smtp"
@@ -13,6 +15,12 @@ import (
 var defaultDialer = &net.Dialer{
 	Timeout:   10 * time.Second,
 	KeepAlive: 30 * time.Second,
+}
+
+type MProxy struct {
+	Type string
+	Host string
+	Port int
 }
 
 // A Dialer is a dialer to an SMTP server.
@@ -40,6 +48,7 @@ type Dialer struct {
 	LocalName string
 
 	dialer netDialer
+	proxy  *MProxy
 }
 
 // NewWithDialer returns a new SMTP Dialer configured with the provided net.Dialer.
@@ -75,13 +84,45 @@ func NewPlainDialer(host string, port int, username, password string) *Dialer {
 	return NewDialer(host, port, username, password)
 }
 
+// SetProxy sets the proxy to enable proxy for the dialer
+func (d *Dialer) SetProxy(proxy *MProxy) {
+	d.proxy = proxy
+}
+
 // Dial dials and authenticates to an SMTP server. The returned SendCloser
 // should be closed when done using it.
 func (d *Dialer) Dial() (SendCloser, error) {
 	if d.dialer == nil {
 		d.dialer = defaultDialer
 	}
-	conn, err := d.dialer.Dial("tcp", addr(d.Host, d.Port))
+
+	var conn net.Conn
+	var err error
+	address := addr(d.Host, d.Port)
+	if d.proxy != nil {
+		switch d.proxy.Type {
+		case "socks5":
+			proxyDialer, err := proxy.SOCKS5("tcp", addr(d.proxy.Host, d.proxy.Port), nil, proxy.Direct)
+			if err != nil {
+				return nil, err
+			}
+			conn, err = proxyDialer.Dial("tcp", address)
+			if err != nil {
+				return nil, err
+			}
+		case "http":
+			conn, err = httpProxyDial(context.Background(), addr(d.proxy.Host, d.proxy.Port), "tcp", address)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("unsupported proxy scheme: %s", d.proxy.Type)
+		}
+
+	} else {
+		conn, err = d.dialer.Dial("tcp", address)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -209,6 +250,31 @@ func (c *smtpSender) Reset() error {
 
 type netDialer interface {
 	Dial(network, address string) (net.Conn, error)
+}
+
+func httpProxyDial(ctx context.Context, proxyAddr, network, address string) (net.Conn, error) {
+	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", proxyAddr)
+	if err != nil {
+		return nil, err
+	}
+	req := fmt.Sprintf("CONNECT %s HTTP/1.1\r\nHost: %s\r\n\r\n", address, address)
+	_, err = conn.Write([]byte(req))
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	buf := make([]byte, 1024)
+	n, err := conn.Read(buf)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	resp := string(buf[:n])
+	if len(resp) < 12 || resp[:12] != "HTTP/1.1 200" {
+		conn.Close()
+		return nil, fmt.Errorf("proxy connect failed: %s", resp)
+	}
+	return conn, nil
 }
 
 // Stubbed out for tests.
